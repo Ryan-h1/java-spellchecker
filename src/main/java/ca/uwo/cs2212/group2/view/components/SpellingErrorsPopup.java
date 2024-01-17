@@ -13,7 +13,7 @@ import static ca.uwo.cs2212.group2.constants.ViewConstants.PRIMARY_COLOUR;
 public class SpellingErrorsPopup extends JDialog{
 
     int Misspellings = Speller.getInstance().getWrongWords().size();
-    int Miscapitalizations = Speller.getInstance().getStats()[3] + Speller.getInstance().getStats()[5];
+    int Miscapitalizations = Speller.getInstance().getStats()[3];
     int Doublewords = Speller.getInstance().getStats()[4];
 
 

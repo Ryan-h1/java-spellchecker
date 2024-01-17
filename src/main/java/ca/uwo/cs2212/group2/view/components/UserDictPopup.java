@@ -4,8 +4,15 @@ import javax.swing.*;
 
 import java.awt.*;
 
+import ca.uwo.cs2212.group2.model.*;
+
 public class UserDictPopup extends JDialog{
-    private static final String MESSAGE_TEXT = "<html><font color = 'white'>User Dictionary: </font></html>";
+  private static Speller speller = Speller.getInstance();
+
+  private static String MESSAGE_TEXT = "<html><font color='white'>User Dictionary: </font>" + speller.getUserDict() + "</html>";
+    
+    
+    
 
      /**
    * Constructor for the corrections popup
@@ -14,7 +21,7 @@ public class UserDictPopup extends JDialog{
    */
     public UserDictPopup(JFrame parentFrame) {
         super(parentFrame, "Dictionary", true); // 'true' for modal
-
+        
         // Set up the content panel
         JPanel contentPanel = new JPanel();
         contentPanel.setBackground(new Color(0x993399));
@@ -38,8 +45,8 @@ public class UserDictPopup extends JDialog{
 
 
     public UserDictPopup() {
-       
-
+        
+        
         // Set up the content panel
         JPanel contentPanel = new JPanel();
         contentPanel.setBackground(new Color(0x993399));

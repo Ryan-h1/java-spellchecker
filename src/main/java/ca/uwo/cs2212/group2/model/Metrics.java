@@ -14,7 +14,7 @@ import com.google.gson.Gson;
  *     load these metrics from and save them to a file in JSON format.
  *     <p>Metrics include document-based metrics (characters, lines, words), spelling-based metrics
  *     (errors and corrections), and dictionary-based metrics (words in the user dictionary).
- */
+ */ 
 public class Metrics {
 
   // Document metrics

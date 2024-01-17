@@ -12,14 +12,14 @@ import static ca.uwo.cs2212.group2.constants.ViewConstants.*;
 public class NavigationBar extends JMenuBar {
   private static final String[] FILE_ITEMS = {"Open", "Save", "Save As", "New"};
   private static final String[] SETTING_ITEMS = {
-    "View User Dictionary", "Exit Checker", "Add Word To Dictionary"
+    "View User Dictionary", "Exit Checker", "Add Word To Dictionary", "Remove Word From Dictionary"
   };
   private static final String[] METRIC_ITEMS = {
     "Number of Spelling Errors", "Number of Corrections", "Metrics Related to Document"
   };
   private static final String[] HELP_ITEMS = {"Help me"};
   private static final String[] SAVE_ITEMS = {"Save my file"};
-  private static final String[] SPELLCHECK_ITEMS = {};
+  private static final String[] SPELLCHECK_ITEMS = {"Toggle HTML Mode ON"};
   private static final int MENU_BAR_HEIGHT = 89;
 
   // Instance variables for each menu
@@ -114,8 +114,10 @@ public class NavigationBar extends JMenuBar {
    *
    * @param listener the mouse listener
    */
-  public void addSpellCheckMenuMouseListener(MouseListener listener) {
-    spellCheckMenu.addMouseListener(listener);
+  public void addSpellCheckMenuListener(ActionListener listener) {
+    for (int i = 0; i < spellCheckMenu.getItemCount(); i++) {
+      spellCheckMenu.getItem(i).addActionListener(listener);
+    }
   }
 
   /**

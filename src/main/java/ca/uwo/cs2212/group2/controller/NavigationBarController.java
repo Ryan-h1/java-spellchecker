@@ -1,5 +1,8 @@
 package ca.uwo.cs2212.group2.controller;
 
+import ca.uwo.cs2212.group2.model.Speller;
+import ca.uwo.cs2212.group2.service.SessionSettingsService;
+import ca.uwo.cs2212.group2.service.UploadFileStateService;
 import ca.uwo.cs2212.group2.view.components.*;
 import org.w3c.dom.Text;
 
@@ -18,6 +21,7 @@ public class NavigationBarController {
   private JTextPane textPane;
   private static String filePath;
   private static Boolean isSaved = false;
+  private Speller speller = Speller.getInstance();
 
   /**
    * Constructor for the navigation bar controller.
@@ -30,14 +34,27 @@ public class NavigationBarController {
     this.textEditor = textEditor;
     this.textPane = textEditor.getTextPane();
     attachListeners();
-    System.out.println("constructor");
+
+    UploadFileStateService.getInstance()
+        .getShouldTriggerFileUploadObservable()
+        .subscribe(
+            newShouldTriggerFileUpload -> {
+              if (newShouldTriggerFileUpload) {
+                UploadFileStateService.getInstance().setShouldTriggerFileUpload(false);
+                openFile(textPane);
+              }
+            },
+            throwable -> {
+              // handle error
+              System.err.println("Error: " + throwable.getMessage());
+            });
   }
 
   /** Attaches listeners to the menu items. */
   private void attachListeners() {
     this.view.addFileMenuListener(createFileActionListener());
     this.view.addSettingsMenuListener(createSettingActionListener());
-    this.view.addSpellCheckMenuMouseListener(createSpellCheckActionListener());
+    this.view.addSpellCheckMenuListener(createSpellCheckActionListener());
     this.view.addMetricsMenuListener(createMetricsActionListener());
     this.view.addSaveMenuListener(createSaveActionListener());
     this.view.addHelpMenuListener(createHelpActionListener());
@@ -157,11 +174,18 @@ public class NavigationBarController {
    *
    * @return the mouse listener
    */
-  private MouseListener createSpellCheckActionListener() {
-    return new MouseAdapter() {
+  private ActionListener createSpellCheckActionListener() {
+    return new ActionListener() {
       @Override
-      public void mouseClicked(MouseEvent e) {
-        textEditor.spellCheckClicked();
+      public void actionPerformed(ActionEvent e) {
+        JMenuItem source = (JMenuItem) e.getSource();
+        if (source.getText().equals("Toggle HTML Mode ON")) {
+          source.setText("Toggle HTML Mode OFF");
+          SessionSettingsService.getInstance().setHTMLModeTurnedOn(true);
+        } else if (source.getText().equals("Toggle HTML Mode OFF")) {
+          source.setText("Toggle HTML Mode ON");
+          SessionSettingsService.getInstance().setHTMLModeTurnedOn(false);
+        }
       }
     };
   }
@@ -231,10 +255,14 @@ public class NavigationBarController {
           dictpopup.showUserDict();
         } else if (source.getText().equals("Exit Checker")) {
           // exit the checker
+          System.exit(0);
         } else if (source.getText().equals("Add Word To Dictionary")) {
           // add word to user dict
-          AddWordPopup word = new AddWordPopup();
-          word.showAddWordDialog();
+          AddWordPopup word = new AddWordPopup(speller.getDict());
+          word.showAddWordDialog(speller.getDict());
+        }else if (source.getText().equals("Remove Word From Dictionary")){
+          RemoveWordPopUp wordToRemove = new RemoveWordPopUp(speller.getDict());
+          wordToRemove.showRemoveWordDialog(speller.getDict());
         }
       }
     };

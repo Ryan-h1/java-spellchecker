@@ -4,11 +4,27 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import ca.uwo.cs2212.group2.controller.*;
+import ca.uwo.cs2212.group2.model.*;
+
+/**
+ * @author Shaylan Pratt
+ * Represents a popup dialog for adding a word to the user dictionary.
+ */
 public class AddWordPopup extends JDialog {
 
     private static final String MESSAGE_TEXT = "<html><font color = 'white'>Enter a word to add to your dictionary:</font></html>";
+    private Dictionary userDict; // Reference to the user dictionary
 
-    public AddWordPopup(){
+
+    /**
+     * Constructs an AddWordPopup object with the given user dictionary.
+     *
+     * @param userDict the user dictionary to which the word will be added.
+     */
+    public AddWordPopup(Dictionary userDict){
+        this.userDict=userDict; 
+        
         // Set up the content panel
         JPanel contentPanel = new JPanel();
         contentPanel.setBackground(new Color(0x993399));
@@ -35,6 +51,10 @@ public class AddWordPopup extends JDialog {
                 // Add your logic here to handle the submitted word
                 String word = wordTextField.getText();
                 System.out.println("Submitted word: " + word);
+                userDict.addWord(word); 
+                
+                Speller.getInstance().writeLineToFile(word,true);
+                System.out.println(Speller.getInstance().getUserDict());
                 // You can close the dialog if needed
                 dispose();
             }
@@ -48,8 +68,14 @@ public class AddWordPopup extends JDialog {
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Close only the dialog
     }
 
-    public static void showAddWordDialog() {
-        AddWordPopup popup = new AddWordPopup();
+
+    /**
+     * Displays the AddWordPopup dialog with the given user dictionary.
+     *
+     * @param userDict the user dictionary to which the word will be added.
+     */
+    public static void showAddWordDialog(Dictionary userDict) {
+        AddWordPopup popup = new AddWordPopup(userDict);
         popup.setVisible(true);
       }
     

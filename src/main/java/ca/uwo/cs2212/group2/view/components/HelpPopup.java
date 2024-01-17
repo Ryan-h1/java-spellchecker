@@ -11,6 +11,7 @@ public class HelpPopup extends JDialog {
 
   private static final String MESSAGE_TEXT =
       "<html><font color = 'white'><center>Welcome to our spellchecker! <br><br>"
+          + "To view correction suggestions, click on the red word. <br><br>"
           + "There are 5 major tabs for navigating through the application: <br><br>"
           + "Settings, File, Spell Check, Metrics, Save. <br><br>"
           + "To spellcheck your document, click spellcheck. <br><br>"
@@ -29,14 +30,14 @@ public class HelpPopup extends JDialog {
     // Set up the content panel
     JPanel contentPanel = new JPanel();
     contentPanel.setBackground(new Color(0x993399));
-    contentPanel.setPreferredSize(new Dimension(400, 300));
+    contentPanel.setPreferredSize(new Dimension(400, 350));
     contentPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
 
     // Set up the label with the help message
     JLabel helpLabel = new JLabel(MESSAGE_TEXT);
     helpLabel.setFont(
         new Font(helpLabel.getFont().getName(), helpLabel.getFont().getStyle(), 13));
-    helpLabel.setPreferredSize(new Dimension(400, 300));
+    helpLabel.setPreferredSize(new Dimension(400, 350));
     helpLabel.setHorizontalAlignment(SwingConstants.CENTER);
     contentPanel.add(helpLabel);
     

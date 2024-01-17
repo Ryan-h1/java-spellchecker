@@ -192,7 +192,8 @@ public class TextEditorController {
                 suggestions[1],
                 suggestions[2],
                 suggestions[3],
-                suggestion -> replaceWordInTextPane(word, suggestion));
+                suggestion -> replaceWordInTextPane(word, suggestion),
+                event -> replaceWordInTextPane(word, " "));
 
         // Position the popup directly below the word
         Point popupLocation = new Point(wordRect.x, wordRect.y + wordRect.height);
@@ -283,7 +284,6 @@ public class TextEditorController {
 
   /**
    * @deprecated Resets the caret style at the given position.
-   *
    * @param position the position
    */
   private void resetCaretStyle(int position) {
@@ -338,7 +338,6 @@ public class TextEditorController {
 
   /**
    * @deprecated Processes the mouse movement event.
-   *
    * @param e the mouse event
    */
   private void processMouseMovement(MouseEvent e) {
