@@ -7,11 +7,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * @author Ryan Hecht Singleton service that keeps track of words that should be ignored once.
+ * Singleton service that keeps track of words that should be ignored once.
+ *
+ * @author Ryan Hecht
  */
 public class WordsToIgnoreOnceService {
   private static WordsToIgnoreOnceService instance;
-  private Set<WordIndex> wordsToIgnoreOnce;
+  private final Set<WordIndex> wordsToIgnoreOnce;
 
   /** Constructor for the WordsToIgnoreOnceService. */
   private WordsToIgnoreOnceService() {
