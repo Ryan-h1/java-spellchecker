@@ -11,6 +11,8 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class Speller {
   private static Speller instance = null;
@@ -155,7 +157,7 @@ public class Speller {
    * compute the same suggestions multiple times.
    */
   private void loadPreviousIncorrectWordCache() {
-    Map<String, Word> incorrectWordMap = new HashMap<>();
+    ConcurrentMap<String, Word> incorrectWordMap = new ConcurrentHashMap<>();
 
     for (Word incorrectWord : this.previousIncorrectWords) {
       // Only put words in that are not doubles, if they're doubles they'll be added later
@@ -316,7 +318,7 @@ public class Speller {
     int inf = s1.length() + s2.length();
 
     // Create and initialize the character array indices (The 2D array)
-    HashMap<Character, Integer> da = new HashMap<Character, Integer>();
+    ConcurrentMap<Character, Integer> da = new ConcurrentHashMap<>();
 
     for (int d = 0; d < s1.length(); d++) {
       da.put(s1.charAt(d), 0);
@@ -418,16 +420,16 @@ public class Speller {
        if (Files.exists(userDictPath)) {
          Dictionary userDict =
              new Dictionary(userDictPath.toString(), false); // false for a regular file
-             this.userdict = userDict; 
+             this.userdict = userDict;
          transferWords(userDict, dict);
          System.out.println("userdict found");
        } else {
            createUserDict(); // Create a new, empty user dictionary file
            userdict = new Dictionary(userDictPath.toString() ,false);
            System.out.println("Userdict not found, blank userdict created");
-        
+
        }
-   
+
        return dict;
   }
 
@@ -466,10 +468,10 @@ public class Speller {
 
   // Put the userDict in group2/userdict.txt
   private void createUserDict() {
-    
+
     // Make the group2 folder
     makeUserDirectoryFile("group2");
-    
+
     //Get the userDict path based on system
     Path userDictPath = Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
     // make the file in the folder
@@ -492,15 +494,15 @@ public class Speller {
 
   public void removeWordFromUserDict(String inword) {
 		Path filePath = Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
-		
+
 		Dictionary userDict = new Dictionary(filePath.toString(),false);
-		
+
 		// Remove the word from the dict
 		userDict.removeWord(inword);
-		
+
 		//overwrite the current userdict with the words
 		writeLineToFile("", false);
-		
+
 		//write out all the words of userdict into the file
 		Enumeration<String> words = userDict.getKeys();
 		while(words.hasMoreElements()) {
@@ -509,7 +511,7 @@ public class Speller {
 			writeLineToFile(element, true);
 			System.out.println("word" + element + "removed from branch");
 		}
-	}  
+	}
 
   public void resetCache() {
     this.previousIncorrectWords = new ArrayList<Word>();
