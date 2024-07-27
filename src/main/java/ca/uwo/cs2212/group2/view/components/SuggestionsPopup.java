@@ -62,10 +62,13 @@ public class SuggestionsPopup extends JDialog {
     suggestion4Button.addActionListener(e -> callback.onSuggestionSelected(sugg4));
     addToDictionaryButton.addActionListener(
         event -> {
-          AddWordPopup wordToAdd = new AddWordPopup(this.speller.getUserDict());
-
-          wordToAdd.showAddWordDialog(speller.getUserDict());
-          this.dispose();
+          if (currentWord != null) {
+            this.speller.getDict().addWord(currentWord.getContent());
+            this.speller.resetCache();
+            this.speller.getUserDict().addWord(word.getContent());
+            Speller.getInstance().writeLineToFile(word.getContent(),true);
+            this.dispose();
+          }
         });
     ignoreOnceButton.addActionListener(
         event -> {
