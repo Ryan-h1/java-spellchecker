@@ -15,19 +15,24 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class Speller {
+  private static final int MAX_SUGGESTIONS = 4; // Maximum number of suggestions to generate
+  private static final int LENGTH_DIFFERENCE = 3; // Acceptable length difference for candidate words
+  private static final int MAX_LEV_DAM_CACHE_SIZE = 10000;
+
+  private static final Map<String, Integer> levDamCache =
+      Collections.synchronizedMap(new LRUCache<>(MAX_LEV_DAM_CACHE_SIZE));
+
   private static Speller instance = null;
-  private TextProcessor usertext;
-  private Dictionary dict;
-  private Metrics metric;
+  private final TextProcessor usertext;
+  private final Dictionary dict;
   private List<Word> incorrectWords;
   private List<Word> previousIncorrectWords;
   private List<Word> allWords;
   private List<Word> uncheckedWords;
-  private List<Word> wrongWords = new ArrayList<Word>();
   // STATISTICALS
-  private List<Word> midCapped = new ArrayList<Word>();
-  private List<Word> misCapped = new ArrayList<Word>();
-  private List<Word> doubleWords = new ArrayList<Word>();
+  private final List<Word> midCapped = new ArrayList<Word>();
+  private final List<Word> misCapped = new ArrayList<Word>();
+  private final List<Word> doubleWords = new ArrayList<Word>();
 
   // userdict
   private Dictionary userdict;
@@ -96,7 +101,7 @@ public class Speller {
         usertext.parseString(inText);
       }
     } catch (Exception x) {
-      System.out.println(String.format("User text file %s not found", inText));
+      System.out.printf("User text file %s not found%n", inText);
     }
 
     // 2. Reset word arrays
@@ -123,7 +128,6 @@ public class Speller {
         // All words considered incorrect and will be spellchecked
         w.setCorrect(false);
         makeCorrections(w, dict);
-        wrongWords.add(w);
 
         // If it is a sentence starter, add it to miscapped
         if (isMiscapped(w)) {
@@ -244,16 +248,14 @@ public class Speller {
   private static TextProcessor process(String inText) {
     // Getting the path for the current directory
     String directoryPath = System.getProperty("user.dir");
-    String fileName = inText;
 
     // Path objects for directory and file
     Path directory = Paths.get(directoryPath);
-    Path filepath = directory.resolve(fileName);
+    Path filepath = directory.resolve(inText);
     try {
-      TextProcessor tp = new TextProcessor(filepath.toString()); // Not throwing correct errors
-      return tp;
+      return new TextProcessor(filepath.toString());
     } catch (FileNotFoundException x) {
-      System.out.println(String.format("Input text %s not found", inText));
+      System.out.printf("Input text %s not found%n", inText);
       x.printStackTrace();
     } catch (Exception s) {
       s.printStackTrace();
@@ -262,26 +264,49 @@ public class Speller {
   }
 
   /**
-   * @param w a word to be compared against dictionary
+   * Generates correction suggestions for an incorrect word.
+   *
+   * @param w    the word to generate corrections for
+   * @param dict the dictionary to compare against
    */
   private static void makeCorrections(Word w, Dictionary dict) {
+    String wordContent = w.getContent();
+    int wordLength = wordContent.length();
+    char firstChar = Character.toLowerCase(wordContent.charAt(0));
 
-    Enumeration<String> keys = dict.getKeys();
-    // Pq of correctionsuggestions
-    PriorityQueue<CorrectionSuggestions> options = new PriorityQueue<CorrectionSuggestions>();
-    while (keys.hasMoreElements()) {
-      String dictword = keys.nextElement();
-      CorrectionSuggestions c =
-          new CorrectionSuggestions(dictword, LevDam(w.getContent(), dictword));
-      // If the word is at the start of sentence, all options are capitalized
-      if (w.isBeginning()) {
-        c.setWord(capitalize(c.getWord()));
+    // Calculate acceptable length range
+    int minLength = Math.max(1, wordLength - LENGTH_DIFFERENCE);
+    int maxLength = wordLength + LENGTH_DIFFERENCE;
+
+    // Get candidate words by length
+    List<String> candidatesByLength = dict.getWordsByLength(minLength, maxLength);
+
+    // Further filter candidates by starting letter
+    List<String> filteredCandidates = new ArrayList<>();
+    for (String candidate : candidatesByLength) {
+      if (!candidate.isEmpty() && candidate.charAt(0) == firstChar) {
+        filteredCandidates.add(candidate);
       }
-      options.add(c);
     }
-    // Pull out the first 4 closest words out of the pq
-    System.out.println(String.format("CORRECTION OPTIONS FOR %s:", w.getContent()));
-    for (int i = 0; i < 4; i++) {
+
+    // PriorityQueue to store correction suggestions, ordered by distance
+    PriorityQueue<CorrectionSuggestions> options = new PriorityQueue<>();
+
+    for (String dictWord : filteredCandidates) {
+      int distance = LevDam(wordContent, dictWord);  // Use memoized LevDam method
+      CorrectionSuggestions suggestion = new CorrectionSuggestions(dictWord, distance);
+
+      // Capitalize suggestions if the word is at the beginning of a sentence
+      if (w.isBeginning()) {
+        suggestion.setWord(capitalize(suggestion.getWord()));
+      }
+
+      options.add(suggestion);
+    }
+
+    // Extract the top MAX_SUGGESTIONS from the priority queue
+    System.out.printf("CORRECTION OPTIONS FOR %s:%n", w.getContent());
+    for (int i = 0; i < MAX_SUGGESTIONS && !options.isEmpty(); i++) {
       CorrectionSuggestions cj = options.poll();
       w.addOption(cj);
       // Sanity Check
@@ -289,7 +314,16 @@ public class Speller {
     }
   }
 
+  /**
+   * Capitalizes the first letter of the given string.
+   *
+   * @param s the string to capitalize
+   * @return the capitalized string
+   */
   private static String capitalize(String s) {
+    if (s == null || s.isEmpty()) {
+      return s;
+    }
     return s.substring(0, 1).toUpperCase() + s.substring(1);
   }
 
@@ -312,6 +346,12 @@ public class Speller {
     // No calculation required if it's the same word
     if (s1.equals(s2)) {
       return 0;
+    }
+
+    String key = s1.compareTo(s2) <= 0 ? s1 + "|" + s2 : s2 + "|" + s1;
+
+    if (levDamCache.containsKey(key)) {
+      return levDamCache.get(key);
     }
 
     // Calculate max possible distance
@@ -370,12 +410,14 @@ public class Speller {
       da.put(s1.charAt(i - 1), i);
     }
 
-    return h[s1.length() + 1][s2.length() + 1];
+    int distance = h[s1.length() + 1][s2.length() + 1];
+    levDamCache.put(key, distance);
+
+    return distance;
   }
 
   private static int mymin(int i, int j, int k, int l) {
-    int val = Math.min(Math.min(i, j), Math.min(k, l));
-    return val;
+    return Math.min(Math.min(i, j), Math.min(k, l));
   }
 
   /**
@@ -385,11 +427,10 @@ public class Speller {
   private static boolean fileExists(String inName) {
     // Getting the path for the current directory
     String directoryPath = System.getProperty("user.dir");
-    String fileName = inName;
 
     // Path objects for directory and file
     Path directory = Paths.get(directoryPath);
-    Path filepath = directory.resolve(fileName);
+    Path filepath = directory.resolve(inName);
 
     // return
     return Files.exists(filepath);
@@ -415,22 +456,22 @@ public class Speller {
     // Load the default dictionary from resources
     Dictionary dict = new Dictionary("dict.txt", true); // true indicates it's a resource
 
-       // Handle the user dictionary
-        Path userDictPath = Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
-       if (Files.exists(userDictPath)) {
-         Dictionary userDict =
-             new Dictionary(userDictPath.toString(), false); // false for a regular file
-             this.userdict = userDict;
-         transferWords(userDict, dict);
-         System.out.println("userdict found");
-       } else {
-           createUserDict(); // Create a new, empty user dictionary file
-           userdict = new Dictionary(userDictPath.toString() ,false);
-           System.out.println("Userdict not found, blank userdict created");
+    // Handle the user dictionary
+    Path userDictPath =
+        Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
+    if (Files.exists(userDictPath)) {
+      Dictionary userDict =
+          new Dictionary(userDictPath.toString(), false); // false for a regular file
+      this.userdict = userDict;
+      transferWords(userDict, dict);
+      System.out.println("userdict found");
+    } else {
+      createUserDict(); // Create a new, empty user dictionary file
+      userdict = new Dictionary(userDictPath.toString(), false);
+      System.out.println("Userdict not found, blank userdict created");
+    }
 
-       }
-
-       return dict;
+    return dict;
   }
 
   // Get the OS
@@ -456,14 +497,12 @@ public class Speller {
     String userHome = System.getProperty("user.home");
 
     // Specify the name of the folder you want to create
-    String folderName = dirname;
 
     // Create a File object representing the folder in the home directory
-    File folder = new File(userHome, folderName);
+    File folder = new File(userHome, dirname);
 
     // Using mkdir() to create a single directory
-    boolean success = folder.mkdir();
-    return success;
+    return folder.mkdir();
   }
 
   // Put the userDict in group2/userdict.txt
@@ -472,46 +511,49 @@ public class Speller {
     // Make the group2 folder
     makeUserDirectoryFile("group2");
 
-    //Get the userDict path based on system
-    Path userDictPath = Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
+    // Get the userDict path based on system
+    Path userDictPath =
+        Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
     // make the file in the folder
     try {
       Files.createFile(userDictPath);
-    }catch(IOException e){
+    } catch (IOException e) {
       System.out.println("something went wrong");
     }
   }
 
   public void writeLineToFile(String line, boolean append) {
-    Path filePath = Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
+    Path filePath =
+        Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
     try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath.toString(), append))) {
-          writer.write(line + '\n');
-          System.out.println("Line written to file successfully.");
-      } catch (IOException e) {
-          System.err.println("Error writing to file: " + e.getMessage());
-      }
+      writer.write(line + '\n');
+      System.out.println("Line written to file successfully.");
+    } catch (IOException e) {
+      System.err.println("Error writing to file: " + e.getMessage());
+    }
   }
 
   public void removeWordFromUserDict(String inword) {
-		Path filePath = Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
+    Path filePath =
+        Paths.get(System.getProperty("user.home"), "group2" + File.separator + "userdict.txt");
 
-		Dictionary userDict = new Dictionary(filePath.toString(),false);
+    Dictionary userDict = new Dictionary(filePath.toString(), false);
 
-		// Remove the word from the dict
-		userDict.removeWord(inword);
+    // Remove the word from the dict
+    userDict.removeWord(inword);
 
-		//overwrite the current userdict with the words
-		writeLineToFile("", false);
+    // overwrite the current userdict with the words
+    writeLineToFile("", false);
 
-		//write out all the words of userdict into the file
-		Enumeration<String> words = userDict.getKeys();
-		while(words.hasMoreElements()) {
-			String element = words.nextElement();
-			//write to user.txt
-			writeLineToFile(element, true);
-			System.out.println("word" + element + "removed from branch");
-		}
-	}
+    // write out all the words of userdict into the file
+    Enumeration<String> words = userDict.getKeys();
+    while (words.hasMoreElements()) {
+      String element = words.nextElement();
+      // write to user.txt
+      writeLineToFile(element, true);
+      System.out.println("word" + element + "removed from branch");
+    }
+  }
 
   public void resetCache() {
     this.previousIncorrectWords = new ArrayList<Word>();
